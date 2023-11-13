@@ -2,12 +2,12 @@
 
 import uuid
 
-from pydantic import BaseModel, validator
-
+from models.base import BaseOrjsonModel
 from models.notification import EventTypeEnum, NotificationTypeEnum
+from pydantic import validator
 
 
-class Template(BaseModel):
+class Template(BaseOrjsonModel):
     """Модель шаблонов."""
 
     template_id: uuid.UUID
@@ -22,4 +22,3 @@ class Template(BaseModel):
         if values.get('notification_type') == NotificationTypeEnum.email and subject is None:
             raise ValueError('Subject required for type email')
         return subject
-

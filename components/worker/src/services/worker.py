@@ -1,111 +1,88 @@
-import asyncio
-import datetime
-from functools import lru_cache
+"""Модуль регулирующий отправку уведомлений."""
 
-import aiormq
-import orjson
-from motor.motor_asyncio import AsyncIOMotorClient
-from fastapi import Depends
-from db.mongo import MongoDB, get_mongo
-from broker.rabbitmq import Rabbit, get_rabbit
 import uuid
+
+import orjson
+from broker.abstract import AbstractBroker
+from db.abstract import AbstractDB
 from loguru import logger
-from models.broker_model import QueueMessage
-from broker.rabbitmq import Rabbit
-from croniter import croniter
-from .assistants.mail import MailMessage
-from pydantic import BaseModel, Field
+from models.broker_message import QueueMessage
 from models.notification import Notification
 from models.templates import Template
+from models.worker_cron import CronModel
+from services.assistants.abstract import Message
 
-
-class CronModel(BaseModel):
-    current_time: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
-    last_update: datetime.datetime
-    last_notification_send: datetime.datetime | None
-    time_of_deletion: datetime.timedelta = datetime.timedelta(days=1)
-    time_difference: datetime.timedelta = Field(default=None)
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self.last_update = data.get('last_update')
-        self.last_notification_send = data.get('last_notification_send')
-        utc_timezone = datetime.timezone.utc
-        if self.last_notification_send is not None:
-            self.last_notification_send = self.last_notification_send.astimezone(utc_timezone)
-        self.last_update = self.last_update.astimezone(utc_timezone)
-        self.time_difference = self.current_time - self.last_update
 
 class Worker:
-    def __init__(self, mongo: MongoDB, broker: Rabbit, email_message: MailMessage):
-        self.mongo = mongo
-        self.broker = broker
-        self.email_message = email_message
+    """Класс регулирующий отправку уведомлений."""
 
-    async def on_message(self, message):
+    def __init__(self, db: AbstractDB, broker: AbstractBroker, message: Message):
+        self.db = db
+        self.broker = broker
+        self.message = message
+
+    async def on_message(self, message: dict) -> None:
+        """Слушает очередь мгновенных уведомлений."""
         msg = QueueMessage(**orjson.loads(message.body))
         notification = await self.get_notification(msg.notification_id)
         if notification.notification_type.email:
-            await self.send_email(notification)
+            await self.send_email(notification, msg.users_ids)
 
-    async def on_scheduler(self, message):
+    async def on_scheduler(self, message: dict) -> None:
+        """Слушает очередь запланированных уведомлений."""
         scheduler_msg = QueueMessage(**orjson.loads(message.body))
 
         notification = await self.get_notification(scheduler_msg.notification_id)
-        if notification.scheduled:
-            if notification.cron:
-                await self.cron(notification)
-            if notification.scheduled_timestamp:
-                await self.timestamp(notification)
+        if notification.cron:
+            await self.cron(notification, scheduler_msg.users_ids)
+        if notification.scheduled_timestamp:
+            await self.timestamp(notification, scheduler_msg.users_ids)
 
-    async def get_notification(self, notification_id: uuid.UUID) -> Notification:
-        if notification:= await self.mongo.find_notification(notification_id):
+    async def get_notification(self, notification_id: uuid.UUID) -> Notification | None:
+        """Получает уведомление из бд по id."""
+        if notification := await self.db.find_notification(notification_id):
             del notification['_id']
             return Notification.model_validate(notification)
 
-    async def timestamp(self, notification: Notification):
+    async def timestamp(self, notification: Notification, ids_users_with_same_timezone: list[uuid.UUID]) -> None:
+        """Отправляет уведомлениен по дате отправки."""
         if notification.notification_type.email:
-            await self.send_email(notification)
+            await self.send_email(notification, ids_users_with_same_timezone)
 
-    async def cron(self, notification: Notification):
-        cron_m = CronModel(
-            last_update=notification.last_update,
-            last_notification_send=notification.last_notification_send
+    async def cron(self, notification: Notification, ids_users_with_same_timezone: list[uuid.UUID]) -> None:
+        """Отправляет уведомлениен по крону."""
+        cron = CronModel(
+            last_update=notification.last_update, last_notification_send=notification.last_notification_send
         )
-        # print(cron_m)
-        if cron_m.time_difference < cron_m.time_of_deletion:
-            print("Не удаляю cron еще не прошли сутки с момента последнего обновления сообщения")
-            if cron_m.last_notification_send is None or cron_m.last_notification_send < cron_m.last_update:
-                print('Отправляю сообщение...Последняя отправка была раньше последнего обновления.')
-                # await self.send_notification(notification)
+        if cron.time_difference < cron.time_of_deletion:
+            logger.info(
+                f'Не удаляю cron для id: "{notification.notification_id}" еще не прошли сутки с момента последнего обновления сообщения.'
+            )
+            if cron.last_notification_send is None or cron.last_notification_send < cron.last_update:
+                logger.info('Отправляю сообщение...Последняя отправка была раньше последнего обновления.')
                 if notification.notification_type.email:
-                    await self.send_email(notification)
+                    await self.send_email(notification, ids_users_with_same_timezone)
             return
-        print("Удаляю cron прошло более суток с момента последнего обновления сообщения")
-        await self.delete_task(notification.notification_id)
-        await self.mongo.update_notification_after_send(notification.notification_id, cron=True)
-        print('Cron пуст. Добавляю в remove_scheduled очередь.')
-
-    async def delete_task(self, notification_id: uuid.UUID):
-        await self.broker.send_to_rabbitmq(
-            body=orjson.dumps(notification_id),
-            routing_key='remove_scheduled.notification',
+        logger.info(
+            f'Удаляю cron для id: "{notification.notification_id}" прошло более суток с момента последнего обновления сообщения.'
         )
+        await self.delete_task(notification.notification_id)
+        await self.db.update_notification_after_send(notification.notification_id, cron=True)
 
-    async def get_template(self, template_id: uuid.UUID):
-        if template:= await self.mongo.find_template(template_id):
+    async def delete_task(self, notification_id: uuid.UUID) -> None:
+        """Отправляет id уведомления в очередь для удаления из периодических оповещений по крону."""
+        await self.broker.send_to_broker(body=QueueMessage(notification_id).model_dump_json().encode())
+
+    async def get_template(self, template_id: uuid.UUID) -> Template | None:
+        """Получает уведомление из бд по id."""
+        if template := await self.db.find_template(template_id):
             del template['_id']
             return Template.model_validate(template)
 
-    async def send_email(self, notification: Notification):
-        users_ids = await self.mongo.check_users_settings(notification.users_ids, notification.notification_type)
+    async def send_email(self, notification: Notification, ids_users_with_same_timezone: list[uuid.UUID]) -> None:
+        """Передаёт уведомление на отправку по email."""
+        users_ids = await self.db.check_users_settings(ids_users_with_same_timezone, notification.notification_type)
         if notification.template_id:
             template = await self.get_template(notification.template_id)
-            if await self.email_message.send(notification, template, users_ids):
-                await self.mongo.update_notification_after_send(notification.notification_id)
-                return
-        await self.send_other_type_notification(notification)
-        await self.mongo.update_notification_after_send(notification.notification_id)
-
-    async def send_other_type_notification(self, notification: Notification):
-        pass
+        if await self.message.send(notification, users_ids, template):
+            await self.db.update_notification_after_send(notification.notification_id)

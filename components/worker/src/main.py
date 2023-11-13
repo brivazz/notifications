@@ -1,25 +1,20 @@
+"""Главный модуль сервиса Worker."""
+
 import asyncio
 import contextlib
 
-# import aiormq
-# import orjson
-# from db import mongo_di
-# from broker import rabbit_di
-# from motor.motor_asyncio import AsyncIOMotorClient
-from services.worker import Worker
-
-# from broker.rabbitmq import Rabbit
-# from db.mongo import MongoDB
-from connection import rabbit_conn, mongo_conn
+from connection import mongo_conn, rabbit_conn
 from connection.all import conn
+from core.config import settings
 from services.assistants.mail import MailMessage
 from services.sender.sender_mail import get_sender
-from core.config import settings
+from services.worker import Worker
 
 
-async def main():
-    await mongo_conn.mongo_conn('localhost:27017')
-    await rabbit_conn.rabbit_conn('amqp://guest:guest@127.0.0.1:5672/')
+async def main() -> None:
+    """Выполняет необходимые действия при запуске/остановке приложения."""
+    await mongo_conn.mongo_conn(settings.mongo_uri)
+    await rabbit_conn.rabbit_conn(settings.rabbit_uri)
     mongo, broker = await conn()
 
     email_sender = await get_sender(settings.sender)
@@ -27,15 +22,15 @@ async def main():
 
     worker = Worker(mongo, broker, email_message)
 
-    await broker.consume('instant.notification', worker.on_message)
-    await broker.consume('send_from_scheduler.notification', worker.on_scheduler)
-
+    await broker.consume(settings.queue_instant, worker.on_message)
+    await broker.consume(settings.queue_from_scheduler, worker.on_scheduler)
 
     try:
         while True:
             await asyncio.sleep(0.1)
     finally:
-        await broker.close()
+        await mongo_conn.close_mongo_conn()
+        await rabbit_conn.close_rabbit_conn()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 """Модуль отправки email сообщений."""
 
-from abc import ABC, abstractmethod
+import abc
 
 from models.message import EmailModel
 
@@ -9,9 +9,9 @@ class SenderError(Exception):
     """Базовое исключение для ошибок."""
 
 
-class Sender(ABC):
+class Sender(abc.ABC):
     """Класс отправка email сообщений."""
 
-    @abstractmethod
-    async def send(self, msg: EmailModel):
+    @abc.abstractmethod
+    async def send(self, msg: EmailModel) -> None:
         """Отправка сообщения по email."""

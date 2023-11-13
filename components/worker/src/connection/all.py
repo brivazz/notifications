@@ -1,8 +1,11 @@
-from broker.rabbitmq import get_rabbit
-from db.mongo import get_mongo
+"""Модуль для установки соединения с базой данных и брокером сообщений."""
+
+from broker.abstract import get_broker
+from db.abstract import get_db
 
 
-async def conn():
-    mongo = await get_mongo()
-    rabbit = await get_rabbit()
-    return mongo, rabbit
+async def conn() -> tuple:
+    """Возвращает кортеж экземпляров бд и брокера."""
+    db = await get_db()
+    broker = await get_broker()
+    return db, broker

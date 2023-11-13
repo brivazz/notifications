@@ -1,14 +1,13 @@
 """Модели уведомлений."""
 
-import uuid
-import enum
 import datetime
+import enum
+import uuid
 
-from pydantic import Field, validator, root_validator
-from fastapi import HTTPException, status
 from cron_validator import CronValidator
-
-from .base import BaseOrjsonModel
+from fastapi import HTTPException, status
+from models.base import BaseOrjsonModel
+from pydantic import Field, root_validator
 
 
 class EventTypeEnum(str, enum.Enum):
@@ -17,10 +16,12 @@ class EventTypeEnum(str, enum.Enum):
     registered = 'registered'
     like_comment = 'like_comment'
 
+
 class NotificationTypeEnum(str, enum.Enum):
     """Доступные типы уведомления."""
 
     email = 'email'
+
 
 class NotificationStatusEnum(str, enum.Enum):
     """Статус уведомления."""
@@ -28,29 +29,33 @@ class NotificationStatusEnum(str, enum.Enum):
     shipped = 'отправлено'
     not_sent = 'не отправлено'
 
+
 class Event(BaseOrjsonModel):
     """Модель события.
 
     Args:
+        - event_type: тип события (например, "мгновенное уведомление")
         - template_id: идентификатор html шаблона
         - users_ids: идентификаторы пользователей, которым адресовано событие
-        - event_type: тип события (например, "мгновенное уведомление")
-        - event_data: дополнительные данные события
-        - schedule_enabled: отложенное уведомление или нет
+        - content_id: идентификатор связанного с событием контента
+        - content_data: данные связанного с событием контента
+        - scheduled: отложенное уведомление или нет
+        - cron: запланированное время для отправки уведомления по крону
         - scheduled_timestamp: запланированное время для отправки уведомления
     """
+
     event_type: EventTypeEnum | None
-    notification_type: NotificationTypeEnum = NotificationTypeEnum.email
-    content_id: uuid.UUID | None
-    content_data: str
     template_id: uuid.UUID | None = None
     users_ids: list[uuid.UUID] = Field(..., min_items=1)
+    content_id: uuid.UUID | None
+    content_data: str
     scheduled: bool = False
     cron: str | None
     scheduled_timestamp: int | None = None
 
     @root_validator(skip_on_failure=True)
     def validate_fields(cls, values):
+        """Валидатор события."""
         scheduled = values.get('scheduled')
         cron = values.get('cron')
         scheduled_timestamp = int(values.get('scheduled_timestamp'))
@@ -101,9 +106,10 @@ class Event(BaseOrjsonModel):
                 except ValueError as err:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail='Invalid field cron: {0}'.format(err),
+                        detail=f'Invalid field cron: {err}',
                     ) from err
         return values
+
 
 class Notification(Event):
     """Модель уведомления.
@@ -113,19 +119,17 @@ class Notification(Event):
         - notification_type: тип уведомления (например, "email", "sms", "push")
         - notification_time_create: время создания уведомления
         - notification_status: статус уведомления (например, "отправлено", "не отправлено")
-        - sent_time: время отправки уведомления
+        - last_update: время обновления уведомления
+        - last_notification_send: время последней отправки уведомления
     """
+
     notification_id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    notification_time_create: datetime.datetime = Field(
-        default=datetime.datetime.now(datetime.timezone.utc)
-    )
-    notification_status: NotificationStatusEnum = Field(
-        default=NotificationStatusEnum.not_sent
-    )
-    last_update: datetime.datetime = Field(
-        default=datetime.datetime.now(datetime.timezone.utc)
-    )
+    notification_type: NotificationTypeEnum = NotificationTypeEnum.email
+    notification_time_create: datetime.datetime = Field(default=datetime.datetime.now(datetime.timezone.utc))
+    notification_status: NotificationStatusEnum = Field(default=NotificationStatusEnum.not_sent)
+    last_update: datetime.datetime = Field(default=datetime.datetime.now(datetime.timezone.utc))
     last_notification_send: datetime.datetime | None = None
+
 
 class NotificationUserSettings(BaseOrjsonModel):
     """Модель настройки уведомлений.
@@ -136,6 +140,7 @@ class NotificationUserSettings(BaseOrjsonModel):
         - enabled: флаг, указывающий, включены ли уведомления данного типа
                                                 для указанного пользователя
     """
+
     user_id: uuid.UUID
     notification_type: NotificationTypeEnum = NotificationTypeEnum.email
     enabled: bool = Field(default=True)
@@ -149,5 +154,4 @@ class QueueMessage(BaseOrjsonModel):
     """Модель сообщения для брокера."""
 
     notification_id: uuid.UUID
-    # notification_type: str
-
+    users_ids: list[uuid.UUID] = Field(..., min_items=1)

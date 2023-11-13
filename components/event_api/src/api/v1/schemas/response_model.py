@@ -1,10 +1,13 @@
-import uuid
+"""Модуль со схемами моделей ответов по http."""
+
 import datetime
+import uuid
 
 from models.base import BaseOrjsonModel
 
 
 class ResponseNotification(BaseOrjsonModel):
+    """Модель ответа создания оповещения."""
 
     event_type: str | None
     notification_type: str
@@ -23,6 +26,8 @@ class ResponseNotification(BaseOrjsonModel):
 
 
 class ResponseTemplate(BaseOrjsonModel):
+    """Модель ответа создания шаблона."""
+
     template_id: uuid.UUID
     event_type: str | None
     notification_type: str

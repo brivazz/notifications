@@ -1,35 +1,26 @@
-"""Файл создания подключения/отключения к MongoDB и создание коллекций."""
+"""Модуль создания подключения/отключения к MongoDB и создание коллекций."""
 
 import uuid
-import bson
+
 from core.config import settings
-from db.mongo import mongo_rep  # type: ignore[attr-defined]
+from db import abstract
+from db.mongo import mongo_rep
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
-# from db import rabbbit
-from faststream.rabbit import RabbitBroker
-
-from pymongo import MongoClient
-# from pymongo import InsertOne
-from pymongo.errors import ServerSelectionTimeoutError
 from pymongo.collection import Collection
 from pymongo.database import Database
-from pymongo.operations import InsertOne
+from pymongo.errors import ServerSelectionTimeoutError
 
-from service import base
-
-
-# MongoDB client
 mongo_client: AsyncIOMotorClient | None = None
 
 
-async def on_startup(data_storage_hosts: list[str]) -> None:
+async def on_startup(mongo_uri: list[str]) -> None:
     """Выполняет необходимые операции при запуске приложения."""
     global mongo_client
     try:
         mongo_client = AsyncIOMotorClient(
-            data_storage_hosts,  # , username=settings.mongo_username, password=settings.mongo_password
-            uuidRepresentation="standard",
+            mongo_uri,
+            uuidRepresentation='standard',
         )
         db: Database = mongo_client[settings.mongo_db]
 
@@ -45,28 +36,27 @@ async def on_startup(data_storage_hosts: list[str]) -> None:
             collection: Collection = db['templates']
             collection.create_index([('template_id', 1)], unique=True)
 
-            template_id = uuid.UUID("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+            template_id = uuid.UUID('3fa85f64-5717-4562-b3fc-2c963f66afa6')
             template = {
-                "template_id": template_id,
-                "event_type": "registered",
-                "notification_type": "email",
-                "title": "Добро пожаловать!",
-                "subject": "Поздравляем с регистрацией!",
-                "content_data": """
-                    <!DOCTYPE html>
-                    <html lang="ru">
-                    <head><title> {{title}} </title></head>
-                    <body>
-                    <h1>Привет {{ name }}!</h1>
-                    <p> {{ content }} </p>
-                    </body>
-                    </html>
-                """
-            }# <p>Рады приветствовать Вас в нашем кинотеатре!</p>
-            # <head><title>Добро пожаловать!</title></head>
+                'template_id': template_id,
+                'event_type': 'registered',
+                'notification_type': 'email',
+                'title': 'Добро пожаловать!',
+                'subject': 'Поздравляем с регистрацией!',
+                'content_data': """
+                                <!DOCTYPE html>
+                                <html lang="ru">
+                                <head><title> {{title}} </title></head>
+                                <body>
+                                <h1>Привет {{ name }}!</h1>
+                                <p> {{ content }} </p>
+                                </body>
+                                </html>
+                                """,
+            }
             await collection.insert_one(template)
 
-        mongo_rep.mongo_repository = mongo_rep.MongoRepository(mongo_client)
+        abstract.db = mongo_rep.MongoDB(mongo_client)
         logger.info('Connected to MongoDB successfully.')
     except ServerSelectionTimeoutError as er:
         logger.exception(f'Error connecting to MongoDB: {er}')

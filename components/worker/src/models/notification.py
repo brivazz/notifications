@@ -1,10 +1,10 @@
 """Модели уведомлений."""
 
-import uuid
-import enum
 import datetime
+import enum
+import uuid
 
-from pydantic import BaseModel
+from models.base import BaseOrjsonModel
 
 
 class EventTypeEnum(str, enum.Enum):
@@ -13,10 +13,12 @@ class EventTypeEnum(str, enum.Enum):
     registered = 'registered'
     like_comment = 'like_comment'
 
+
 class NotificationTypeEnum(str, enum.Enum):
     """Доступные типы уведомления."""
 
     email = 'email'
+
 
 class NotificationStatusEnum(str, enum.Enum):
     """Статус уведомления."""
@@ -24,7 +26,8 @@ class NotificationStatusEnum(str, enum.Enum):
     shipped = 'отправлено'
     not_sent = 'не отправлено'
 
-class Notification(BaseModel):
+
+class Notification(BaseOrjsonModel):
     """Модель уведомлений."""
 
     event_type: EventTypeEnum | None

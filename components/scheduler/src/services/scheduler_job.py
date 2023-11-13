@@ -1,63 +1,45 @@
 """Модуль планировщика отложенных уведомлений."""
 
-import logging
-from datetime import datetime
-from uuid import UUID
+import datetime
+import uuid
 
+from apscheduler import job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
-from models.scheduled_notification import QueueMessage
-
-# from scheduler.abstract import Scheduler
 
 
-# logger = logging.getLogger(__name__)
-
-
-# class PractixScheduler(Scheduler):
 class SchedulerJob:
     """Класс планировщика отложенных уведомлений."""
 
-    def __init__(self, send_to_rabbit):
+    def __init__(self, send_to_broker) -> None:
         """Инициализация объекта."""
         self.scheduler = AsyncIOScheduler()
         self.scheduler.start()
-        self.send_to_rabbit = send_to_rabbit
-        self.exchange_name = ''#exchange_name
+        self.send_to_broker = send_to_broker
 
-    async def add_by_date(self, task_id: UUID, run_date: datetime, args: tuple):
+    async def add_by_date(self, task_id: uuid.UUID, run_date: datetime.datetime, args: tuple) -> job.Job:
         """Добавление нотификации в планировщик по дате."""
         if self.scheduler.get_job(job_id=str(task_id)):
             self.scheduler.get_job(job_id=str(task_id)).remove()
 
-        return self.scheduler.add_job(
-            self.send_to_rabbit,
-            'date',
-            run_date=run_date,
-            args=args,
-            id=str(task_id)
-        )
+        return self.scheduler.add_job(self.send_to_broker, 'date', run_date=run_date, args=args, id=str(task_id))
 
-    async def add_by_cron(self, task_id: UUID, cron: str, timezone: str, args: tuple):
-    # async def add_by_cron(self, content: dict):
+    async def add_by_cron(self, task_id: uuid.UUID, cron: str, timezone: str, args: tuple) -> job.Job:
         """Добавление нотификации в планировщик по крону."""
 
         if self.scheduler.get_job(job_id=str(task_id)):
             self.scheduler.get_job(job_id=str(task_id)).remove()
 
         return self.scheduler.add_job(
-            self.send_to_rabbit,
-            CronTrigger.from_crontab(cron, timezone=timezone),
-            args=args,
-            id=str(task_id)
+            self.send_to_broker, CronTrigger.from_crontab(cron, timezone=timezone), args=args, id=str(task_id)
         )
 
-    async def remove(self, task_id: UUID):
+    async def remove(self, task_id: uuid.UUID) -> None:
         """Удаление нотификации из планировщика."""
         if self.scheduler.get_job(job_id=str(task_id)):
             self.scheduler.get_job(job_id=str(task_id)).remove()
-            logger.info('Notification {0} removed from scheduler'.format(task_id))
+            logger.info(f'Notification {task_id} removed from scheduler')
             return
 
-        logger.warning('Notification {0} not found in scheduler'.format(task_id))
+        logger.warning(f'Notification {task_id} not found in scheduler')

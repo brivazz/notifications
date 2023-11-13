@@ -1,21 +1,23 @@
-from loguru import logger
+"""Модуль создания подключения/отключения соединения RabbitMQ."""
 
 import aiormq
-from broker.rabbit import rabbit_rep
-
+from broker import abstract
+from broker.rabbit import rabbit_broker
+from loguru import logger
 
 connection: aiormq.Connection | None = None
 channel: aiormq.Channel | None = None
 
 
-async def on_startup(host):
+async def on_startup(rabbit_uri: str) -> None:
+    """Создаёт соединение c RabbitMQ."""
     global connection
     global channel
     try:
-        connection = await aiormq.connect('amqp://guest:guest@127.0.0.1:5672/')
+        connection = await aiormq.connect(rabbit_uri)
         channel = await connection.channel()
 
-        rabbit_rep.rabbit_repository = rabbit_rep.RabbitRepository(connection, channel)
+        abstract.broker = rabbit_broker.RabbitBroker(connection, channel)
 
         logger.info('Connected to Rabbit successfully.')
     except Exception as er:
@@ -23,8 +25,9 @@ async def on_startup(host):
 
 
 async def on_shutdown() -> None:
+    """Закрывает соединение c RabbitMQ."""
     if channel:
         await channel.close()
     if connection:
         await connection.close()
-        logger.info('Disconnected from Rabbit.')
+    logger.info('Disconnected from Rabbit.')

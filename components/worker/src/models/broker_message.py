@@ -1,9 +1,12 @@
+"""Модуль с моделью для брокера."""
+
 import uuid
 
-from .base import BaseOrjsonModel
+from models.base import BaseOrjsonModel
 
 
 class QueueMessage(BaseOrjsonModel):
     """Модель сообщения для брокера."""
 
     notification_id: uuid.UUID
+    users_ids: list[uuid.UUID] = None

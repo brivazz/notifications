@@ -1,14 +1,13 @@
 """Модуль отображения email сообщений."""
 
-from .abstract import Sender
-
 from models.message import EmailModel
+from services.sender.abstract import Sender
 
 
 class PrintEmailSender(Sender):
     """Класс отображения email сообщений."""
 
-    def __init__(self, from_email: str):
+    def __init__(self, from_email: str) -> None:
         """Инициализация объекта."""
         self.from_email = from_email
 

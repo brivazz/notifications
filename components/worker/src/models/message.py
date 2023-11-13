@@ -1,3 +1,5 @@
+"""Модуль для модели email письма."""
+
 from pydantic import BaseModel, EmailStr
 
 

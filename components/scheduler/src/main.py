@@ -1,26 +1,28 @@
 import asyncio
 import contextlib
 
-from connection import rabbit_conn, mongo_conn
+from auth.fake_user import User
+from connection import mongo_conn, rabbit_conn
 from connection.all import conn
+from core.config import settings
 from services.scheduler import Scheduler
 from services.scheduler_job import SchedulerJob
-from auth.fake_user import User
 
-async def main():
-    await mongo_conn.mongo_conn('localhost:27017')
-    await rabbit_conn.rabbit_conn('amqp://guest:guest@127.0.0.1:5672/')
+
+async def main() -> None:
+    """Главная функция запуска сервиса scheduler."""
+    await mongo_conn.mongo_conn(settings.mongo_uri, settings.mongo_db)
+    await rabbit_conn.rabbit_conn(settings.rabbit_uri)
     mongo, broker = await conn()
 
-    # print(dir(rabbit_publisher))
     user = User()
-    scheduler_job = SchedulerJob(broker.send_to_rabbitmq)
+    scheduler_job = SchedulerJob(broker.send_to_broker)
 
     scheduler = Scheduler(mongo, scheduler_job, user)
     await scheduler.download_scheduled_notifications()
 
-    await broker.consume('scheduled.notification', scheduler.incoming)
-    await broker.consume('remove_scheduled.notification', scheduler.remove)
+    await broker.consume(settings.queue_from_scheduler, scheduler.incoming)
+    await broker.consume(settings.queue_remove_scheduled, scheduler.remove)
 
     try:
         while True:

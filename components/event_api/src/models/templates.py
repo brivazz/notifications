@@ -3,10 +3,10 @@
 import uuid
 
 from fastapi import HTTPException, status
-from jinja2 import TemplateSyntaxError, Environment
-from pydantic import BaseModel, Field, validator
-
+from jinja2 import Environment, TemplateSyntaxError
 from models.notifications import EventTypeEnum, NotificationTypeEnum
+from pydantic import Field, validator
+
 from .base import BaseOrjsonModel
 
 
@@ -21,7 +21,7 @@ class Template(BaseOrjsonModel):
     content_data: str
 
     @validator('subject', always=True)
-    def validate_subject(cls, subject, values):
+    def validate_subject(cls, subject, values) -> str:
         """Проверка корректности поля subject."""
         if values.get('notification_type') == NotificationTypeEnum.email and not subject:
             raise HTTPException(
@@ -31,24 +31,24 @@ class Template(BaseOrjsonModel):
 
         if subject:
             try:
-                Environment().parse(subject)
+                Environment(autoescape=True).parse(subject)
             except TemplateSyntaxError as err:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Invalid template subject: {0}'.format(err),
+                    detail=f'Invalid template subject: {err}',
                 )
 
         return subject
 
     @validator('content_data')
-    def validate_content(cls, content_data):
+    def validate_content(cls, content_data) -> str:
         """Проверка корректности поля content."""
         try:
-            Environment().parse(content_data)
+            Environment(autoescape=True).parse(content_data)
         except TemplateSyntaxError as err:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Invalid template content: {0}'.format(err),
+                detail=f'Invalid template content: {err}',
             )
 
         return content_data

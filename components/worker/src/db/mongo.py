@@ -1,35 +1,31 @@
-import contextlib
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCursor
-from pymongo.collection import Collection
-import uuid, enum, datetime
-from pydantic import Field
+"""Реализация AbstractDB для MongoDB."""
 
-import orjson
-from pydantic import BaseModel
-import typing
-import smtplib
-from email.message import EmailMessage
-from pprint import pprint
-from pymongo.errors import DuplicateKeyError
-from pymongo import ReturnDocument
-from pymongo.collection import InsertOneResult, UpdateResult
+import datetime
 import uuid
-from loguru import logger
+
+from db.abstract import AbstractDB
+from pymongo import ReturnDocument
+from pymongo.collection import Collection, UpdateResult
 
 
-class MongoDB:
+class MongoDB(AbstractDB):
+    """Реализация AbstractDB для взаимодействия с коллекциями MongoDB."""
+
     def __init__(self, database) -> None:
+        """Конструктор класса."""
         self.database = database
 
-    async def get_collection(self, collection_name: str):
+    async def get_collection(self, collection_name: str) -> Collection:
+        """Получить коллекцию по названию."""
         return self.database[collection_name]
 
-    async def find_one(self, collection_name, query):
+    async def find_one(self, collection_name: str, query: dict) -> dict | None:
         """Выборка одного документа из БД."""
         collection = await self.get_collection(collection_name)
         return await collection.find_one(query)
 
-    async def update_one(self, collection_name: str, query: dict, update_data: dict):
+    async def update_one(self, collection_name: str, query: dict, update_data: dict) -> ReturnDocument:
+        """Обновление документа в коллекции."""
         collection = await self.get_collection(collection_name)
         update_result: UpdateResult = await collection.find_one_and_update(
             query,
@@ -38,7 +34,8 @@ class MongoDB:
         )
         return update_result
 
-    async def update_notification_after_send(self, notification_id: uuid.UUID, cron: False = None):
+    async def update_notification_after_send(self, notification_id: uuid.UUID, cron: False = None) -> None:
+        """Обновляет запись после отправки уведомления."""
         query = {'notification_id': notification_id}
         notification = await self.find_one('notifications', query)
         await self.update_one(
@@ -46,40 +43,27 @@ class MongoDB:
             notification,
             {
                 'notification_status': 'отправлено',
-                'last_notification_send': datetime.datetime.now(datetime.timezone.utc)
-            }
+                'last_notification_send': datetime.datetime.now(datetime.timezone.utc),
+            },
         )
         if cron:
-            await self.update_one(
-                'notifications', notification, {'cron': ''})
+            await self.update_one('notifications', notification, {'cron': ''})
 
-    async def check_users_settings(
-        self,
-        users_ids: list[uuid.UUID],
-        notification_type: str
-    ) -> list[uuid.UUID, None]:
-        query = {
-                'notification_type': notification_type,
-                'enabled': True,
-                'user_id': {'$in': users_ids}
-        }
+    async def check_users_settings(self, users_ids: list[uuid.UUID], notification_type: str) -> list[uuid.UUID, None]:
+        """Проверяем настройки пользователя по типу оповещения."""
+        query = {'notification_type': notification_type, 'enabled': True, 'user_id': {'$in': users_ids}}
         projection = {'user_id': 1}
         user_settings = await self.get_collection('notification_user_settings')
         result = await user_settings.find(query, projection).to_list(length=None)
         users_ids = [doc['user_id'] for doc in result]
         return users_ids
 
-    async def find_notification(self, notification_id: uuid.UUID):
+    async def find_notification(self, notification_id: uuid.UUID) -> dict | None:
+        """Поиск уведомления по id."""
         query = {'notification_id': notification_id}
         return await self.find_one('notifications', query)
 
-    async def find_template(self, template_id: uuid.UUID):
+    async def find_template(self, template_id: uuid.UUID) -> dict | None:
+        """Поиск шаблона по id."""
         query = {'template_id': template_id}
         return await self.find_one('templates', query)
-
-
-mongo: MongoDB | None = None
-
-
-async def get_mongo():
-    return mongo
