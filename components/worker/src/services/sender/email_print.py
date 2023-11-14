@@ -1,5 +1,6 @@
 """Модуль отображения email сообщений."""
 
+from loguru import logger
 from models.message import EmailModel
 from services.sender.abstract import Sender
 
@@ -20,4 +21,4 @@ class PrintEmailSender(Sender):
             'html_content': msg.body,
         }
 
-        print(message)
+        logger.info(f'The email message: {message} was sent to: {msg.to_email}')

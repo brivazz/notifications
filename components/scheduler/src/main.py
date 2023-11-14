@@ -10,7 +10,7 @@ from services.scheduler_job import SchedulerJob
 
 
 async def main() -> None:
-    """Главная функция запуска сервиса scheduler."""
+    """Главная функция запуска сервиса Scheduler."""
     await mongo_conn.mongo_conn(settings.mongo_uri, settings.mongo_db)
     await rabbit_conn.rabbit_conn(settings.rabbit_uri)
     mongo, broker = await conn()
@@ -21,12 +21,11 @@ async def main() -> None:
     scheduler = Scheduler(mongo, scheduler_job, user)
     await scheduler.download_scheduled_notifications()
 
-    await broker.consume(settings.queue_from_scheduler, scheduler.incoming)
+    await broker.consume(settings.queue_scheduled, scheduler.incoming)
     await broker.consume(settings.queue_remove_scheduled, scheduler.remove)
 
     try:
-        while True:
-            await asyncio.sleep(0.1)
+        await asyncio.Future()
     finally:
         await mongo_conn.close_mongo_conn()
         await rabbit_conn.close_rabbit_conn()

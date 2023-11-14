@@ -20,7 +20,7 @@ class AbstractDB(abc.ABC):
         """Обновление документа в коллекции."""
 
     @abc.abstractmethod
-    async def update_notification_after_send(self, notification_id: uuid.UUID, cron: False = None) -> None:
+    async def update_notification_after_send(self, notification_id: uuid.UUID, cron: bool = False) -> None:
         """Обновляет запись после отправки уведомления."""
 
     @abc.abstractmethod

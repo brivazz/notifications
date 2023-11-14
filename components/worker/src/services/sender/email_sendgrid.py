@@ -35,4 +35,4 @@ class SendGridEmailSender(Sender):
             logger.error(f'Failed to send email: {response.body}')
             raise SenderError(f'Failed to send email: {response.body}')
 
-        logger.info(f'Send Email to {msg.to_email}')
+        logger.info(f'Send email to {msg.to_email}')

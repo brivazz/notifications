@@ -37,4 +37,4 @@ class MailgunSender(Sender):
                 logger.error(f'Error sending email: {await response.text()}')
                 raise SenderError(f'Error sending email: {await response.text()}')
 
-            logger.info(f'Send email send to {msg.to_email}')
+            logger.info(f'Send email to {msg.to_email}')

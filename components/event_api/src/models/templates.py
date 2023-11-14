@@ -16,7 +16,6 @@ class Template(BaseOrjsonModel):
     template_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     event_type: EventTypeEnum | None
     notification_type: NotificationTypeEnum = NotificationTypeEnum.email
-    title: str
     subject: str | None
     content_data: str
 

@@ -6,7 +6,7 @@ import orjson
 from broker.abstract import AbstractBroker
 from db.abstract import AbstractDB
 from loguru import logger
-from models.broker_message import QueueMessage
+from models.broker_message import QueueMessage, QueueRemove
 from models.notification import Notification
 from models.templates import Template
 from models.worker_cron import CronModel
@@ -55,23 +55,19 @@ class Worker:
             last_update=notification.last_update, last_notification_send=notification.last_notification_send
         )
         if cron.time_difference < cron.time_of_deletion:
-            logger.info(
-                f'Не удаляю cron для id: "{notification.notification_id}" еще не прошли сутки с момента последнего обновления сообщения.'
-            )
             if cron.last_notification_send is None or cron.last_notification_send < cron.last_update:
-                logger.info('Отправляю сообщение...Последняя отправка была раньше последнего обновления.')
                 if notification.notification_type.email:
                     await self.send_email(notification, ids_users_with_same_timezone)
             return
         logger.info(
-            f'Удаляю cron для id: "{notification.notification_id}" прошло более суток с момента последнего обновления сообщения.'
+            f'Удаляю cron для уведомления: "{notification.notification_id}" прошло более суток с момента последнего обновления сообщения.'
         )
-        await self.delete_task(notification.notification_id)
+        await self.delete_task(notification)
         await self.db.update_notification_after_send(notification.notification_id, cron=True)
 
-    async def delete_task(self, notification_id: uuid.UUID) -> None:
+    async def delete_task(self, notification: Notification) -> None:
         """Отправляет id уведомления в очередь для удаления из периодических оповещений по крону."""
-        await self.broker.send_to_broker(body=QueueMessage(notification_id).model_dump_json().encode())
+        await self.broker.send_to_broker(body=QueueRemove(**notification.model_dump()).model_dump_json().encode())
 
     async def get_template(self, template_id: uuid.UUID) -> Template | None:
         """Получает уведомление из бд по id."""

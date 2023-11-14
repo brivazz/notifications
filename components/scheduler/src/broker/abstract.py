@@ -24,4 +24,5 @@ broker: AbstractBroker | None = None
 
 
 async def get_broker() -> AbstractBroker:
+    await broker.declare_queue()
     return broker

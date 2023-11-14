@@ -45,7 +45,7 @@ class ContentFilmService:
             subject = 'Новые лайки'
             text = (
                 header
-                + '<h1>Привет {{ name }}!</h1><p> Вам поставили {{content}} лайк(-ов) на {{content_id}} комментарий </p>'
+                + '<h1>Привет {{ name }}!</h1><p> Вам поставили {{ content }} лайк(-ов) на {{ content_id }} комментарий </p>'
                 + footer
             )
             content = Content(

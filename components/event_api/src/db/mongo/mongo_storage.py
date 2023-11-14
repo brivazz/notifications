@@ -41,12 +41,11 @@ async def on_startup(mongo_uri: list[str]) -> None:
                 'template_id': template_id,
                 'event_type': 'registered',
                 'notification_type': 'email',
-                'title': 'Добро пожаловать!',
                 'subject': 'Поздравляем с регистрацией!',
                 'content_data': """
                                 <!DOCTYPE html>
                                 <html lang="ru">
-                                <head><title> {{title}} </title></head>
+                                <head><title>Добро пожаловать!</title></head>
                                 <body>
                                 <h1>Привет {{ name }}!</h1>
                                 <p> {{ content }} </p>

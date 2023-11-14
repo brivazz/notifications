@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     mongo_db: str = Field('notifications')
 
     rabbit_uri: str = Field('amqp://guest:guest@127.0.0.1:5672/')
+    queue_scheduled: str = Field('scheduled.notification')
     queue_from_scheduler: str = Field('send_from_scheduler.notification')
     queue_remove_scheduled: str = Field('remove_scheduled.notification')
 

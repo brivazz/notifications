@@ -8,7 +8,13 @@ import orjson
 from auth.fake_user import User
 from db.abstract import AbstractDB
 from loguru import logger
-from models.scheduled_notification import QueueMessage, ScheduledByCron, ScheduledByDate, ScheduledNotification
+from models.scheduled_notification import (
+    QueueMessage,
+    QueueRemove,
+    ScheduledByCron,
+    ScheduledByDate,
+    ScheduledNotification,
+)
 from services.scheduler_job import SchedulerJob
 from tzlocal import get_localzone
 
@@ -107,8 +113,8 @@ class Scheduler:
 
     async def remove(self, message: dict) -> None:
         """Удаляем уведомление из планировщика."""
-        notification_id = QueueMessage(**orjson.loads(message.body))
-        await self.scheduler_job.remove(notification_id)
+        msg = QueueRemove(**orjson.loads(message.body))
+        await self.scheduler_job.remove(msg.notification_id)
 
     async def incoming(self, message: dict) -> None:
         """Получаем сообщение, загружаем из БД уведомление и ставим его в очередь."""
@@ -116,6 +122,7 @@ class Scheduler:
         doc = await self.db.find_one('notifications', {'notification_id': msg.notification_id})
         if doc is None:
             logger.error(f'Scheduled notification {msg.notification_id} not found')
+            await self.scheduler_job.remove(msg.notification_id)
             return
 
         await self.scheduled(ScheduledNotification(**doc))

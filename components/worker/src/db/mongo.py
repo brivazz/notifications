@@ -34,10 +34,13 @@ class MongoDB(AbstractDB):
         )
         return update_result
 
-    async def update_notification_after_send(self, notification_id: uuid.UUID, cron: False = None) -> None:
+    async def update_notification_after_send(self, notification_id: uuid.UUID, cron: bool = False) -> None:
         """Обновляет запись после отправки уведомления."""
         query = {'notification_id': notification_id}
         notification = await self.find_one('notifications', query)
+        if cron:
+            await self.update_one('notifications', notification, {'cron': ''})
+            return
         await self.update_one(
             'notifications',
             notification,
@@ -46,8 +49,6 @@ class MongoDB(AbstractDB):
                 'last_notification_send': datetime.datetime.now(datetime.timezone.utc),
             },
         )
-        if cron:
-            await self.update_one('notifications', notification, {'cron': ''})
 
     async def check_users_settings(self, users_ids: list[uuid.UUID], notification_type: str) -> list[uuid.UUID, None]:
         """Проверяем настройки пользователя по типу оповещения."""

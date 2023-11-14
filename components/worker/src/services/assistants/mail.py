@@ -45,5 +45,5 @@ class MailMessage(Message):
                 ),
             )
             await self.email_sender.send(mail)
-            logger.info(f'Уведомление успешно отправлено пользователю {user_id}')
+            logger.info(f'Уведомление "{notification.notification_id}" успешно отправлено пользователю {user_id}')
         return notification

@@ -4,6 +4,7 @@ import datetime
 from functools import lru_cache
 
 from broker.abstract import AbstractBroker, get_broker
+from core.config import settings
 from db.abstract import AbstractDB, get_db
 from fastapi import Depends
 from models.notifications import Event, Notification, NotificationUserSettings, QueueMessage
@@ -13,12 +14,12 @@ from models.templates import Template
 class Notifications:
     """Сервис для создания уведомлений и шаблонов."""
 
-    def __init__(self, db: AbstractDB, broker: AbstractBroker):
+    def __init__(self, db: AbstractDB, broker: AbstractBroker) -> None:
         """Инициализация объекта."""
         self.db = db
         self.broker = broker
 
-    async def create_notification(self, event: Event):
+    async def create_notification(self, event: Event) -> Notification:
         """Записываем в базу уведомление и отправляем в очередь."""
         if event.content_id:
             if existing_doc := await self.find_and_update_content(event.content_id, event.content_data):
@@ -29,16 +30,16 @@ class Notifications:
         if notification.scheduled:
             await self.broker.send_to_broker(
                 body=QueueMessage(**notification.model_dump()).model_dump_json().encode(),
-                routing_key='scheduled.notification',
+                routing_key=settings.queue_scheduled,
             )
             return notification.model_dump()
         await self.broker.send_to_broker(
             body=QueueMessage(**notification.model_dump()).model_dump_json().encode(),
-            routing_key='instant.notification',
+            routing_key=settings.queue_instant,
         )
         return notification.model_dump()
 
-    async def save_user_settings(self, notification: Notification):
+    async def save_user_settings(self, notification: Notification) -> None:
         """Сохраняем в базу настройки пользователя по типу уведомления."""
         for user_id in notification.users_ids:
             user = NotificationUserSettings(user_id=user_id, **notification.model_dump())
@@ -63,11 +64,11 @@ class Notifications:
             return res
         return existing_content
 
-    async def create_template(self, template: Template):
+    async def create_template(self, template: Template) -> Template:
         """Сохраняем в базу шаблон."""
         template = Template(**template.model_dump())
-        await self.db.save('templates', template.model_dump())
-        return template.model_dump()
+        if await self.db.save('templates', template.model_dump()):
+            return template.model_dump()
 
 
 @lru_cache

@@ -9,4 +9,10 @@ class QueueMessage(BaseOrjsonModel):
     """Модель сообщения для брокера."""
 
     notification_id: uuid.UUID
-    users_ids: list[uuid.UUID] = None
+    users_ids: list[uuid.UUID] | None = None
+
+
+class QueueRemove(BaseOrjsonModel):
+    """Модель удаляемого сообщения для брокера."""
+
+    notification_id: uuid.UUID
