@@ -3,13 +3,12 @@
 from db import abstract, mongo
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError
 
 mongo_client: AsyncIOMotorClient | None = None
 
 
-async def mongo_conn(mongo_uri, mongo_db) -> None:
+async def mongo_conn(mongo_uri) -> None:
     """Устанавливает соединение с базой данных."""
     global mongo_client
     try:
@@ -17,9 +16,7 @@ async def mongo_conn(mongo_uri, mongo_db) -> None:
             mongo_uri,
             uuidRepresentation='standard',
         )
-        db: Database = mongo_client[mongo_db]
-
-        abstract.db = mongo.MongoDB(db)
+        abstract.db = mongo.MongoDB(mongo_client)
 
         logger.info('Connected to MongoDB successfully.')
     except ServerSelectionTimeoutError as er:

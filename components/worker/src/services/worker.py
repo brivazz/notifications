@@ -16,7 +16,8 @@ from services.assistants.abstract import Message
 class Worker:
     """Класс регулирующий отправку уведомлений."""
 
-    def __init__(self, db: AbstractDB, broker: AbstractBroker, message: Message):
+    def __init__(self, db: AbstractDB, broker: AbstractBroker, message: Message) -> None:
+        """Конструктор класса."""
         self.db = db
         self.broker = broker
         self.message = message
@@ -77,8 +78,11 @@ class Worker:
 
     async def send_email(self, notification: Notification, ids_users_with_same_timezone: list[uuid.UUID]) -> None:
         """Передаёт уведомление на отправку по email."""
-        users_ids = await self.db.check_users_settings(ids_users_with_same_timezone, notification.notification_type)
-        if notification.template_id:
+        if users_ids := await self.db.check_users_settings(
+            ids_users_with_same_timezone, notification.notification_type
+        ):
             template = await self.get_template(notification.template_id)
-        if await self.message.send(notification, users_ids, template):
-            await self.db.update_notification_after_send(notification.notification_id)
+            if await self.message.send(notification, users_ids, template):
+                await self.db.update_notification_after_send(notification.notification_id)
+            return
+        logger.info(f'У пользователей "{ids_users_with_same_timezone}" отключены email уведомления.')

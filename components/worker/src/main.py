@@ -3,8 +3,7 @@
 import asyncio
 import contextlib
 
-from connection import mongo_conn, rabbit_conn
-from connection.all import conn
+from connection.conn import connection
 from core.config import settings
 from services.assistants.mail import MailMessage
 from services.sender.sender_mail import get_sender
@@ -13,9 +12,7 @@ from services.worker import Worker
 
 async def main() -> None:
     """Выполняет необходимые действия при запуске/остановке приложения."""
-    await mongo_conn.mongo_conn(settings.mongo_uri)
-    await rabbit_conn.rabbit_conn(settings.rabbit_uri)
-    db, broker = await conn()
+    db, broker = await connection()
 
     email_sender = await get_sender(settings.sender)
     email_message = MailMessage(email_sender)
@@ -28,8 +25,8 @@ async def main() -> None:
     try:
         await asyncio.Future()
     finally:
-        await mongo_conn.close_mongo_conn()
-        await rabbit_conn.close_rabbit_conn()
+        await db.close()
+        await broker.close()
 
 
 if __name__ == '__main__':

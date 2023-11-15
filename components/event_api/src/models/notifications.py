@@ -48,7 +48,7 @@ class Event(BaseOrjsonModel):
     template_id: uuid.UUID | None = None
     users_ids: list[uuid.UUID] = Field(..., min_items=1)
     content_id: uuid.UUID | None
-    content_data: str
+    content_data: str | None
     scheduled: bool = False
     cron: str | None
     scheduled_timestamp: int | None = None

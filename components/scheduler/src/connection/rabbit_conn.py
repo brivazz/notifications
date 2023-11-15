@@ -21,12 +21,3 @@ async def rabbit_conn(rabbit_uri) -> None:
         logger.info('Connected to Rabbit successfully.')
     except Exception as er:
         logger.exception(f'Error connecting to Rabbit: {er}')
-
-
-async def close_rabbit_conn() -> None:
-    """Закрывает соединение с брокером сообщений."""
-    if channel:
-        await channel.close()
-    if connection:
-        await connection.close()
-    logger.info('Disconnected from Rabbit.')

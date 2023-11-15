@@ -19,12 +19,7 @@ async def rabbit_conn(rabbit_host) -> None:
         abstract.broker = rabbitmq.RabbitBroker(connection, channel)
 
         logger.info('Connected to Rabbit successfully.')
+    except aiormq.exceptions.AMQPConnectionError as er:
+        logger.exception(f'Error connecting to Rabbit: {er}')
     except Exception as er:
         logger.exception(f'Error connecting to Rabbit: {er}')
-
-
-async def close_rabbit_conn() -> None:
-    """Закрывает соединение с брокером сообщений."""
-    if connection:
-        await connection.close()
-        logger.info('Disconnected from Rabbit.')

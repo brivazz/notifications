@@ -4,7 +4,7 @@ import uuid
 
 from jinja2 import Template as TemplateJinja
 from loguru import logger
-from models.message import EmailModel
+from models.message import EmailModel, MailMessageError
 from models.notification import Notification
 from models.templates import Template
 from services.assistants.abstract import Message
@@ -44,6 +44,10 @@ class MailMessage(Message):
                     }
                 ),
             )
-            await self.email_sender.send(mail)
-            logger.info(f'Уведомление "{notification.notification_id}" успешно отправлено пользователю {user_id}')
+            try:
+                await self.email_sender.send(mail)
+                logger.info(f'Уведомление "{notification.notification_id}" успешно отправлено пользователю {user_id}')
+            except MailMessageError as er:
+                logger.info(f'Ошибка: {er} при отправке уведомления "{notification.notification_id}"')
+                return
         return notification

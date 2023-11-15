@@ -9,3 +9,7 @@ class EmailModel(BaseModel):
     to_email: EmailStr
     subject: str
     body: str
+
+
+class MailMessageError(Exception):
+    """Базовый класс для ошибок сервиса."""

@@ -8,6 +8,14 @@ class AbstractDB(abc.ABC):
     """Абстрактный класс для работы с БД."""
 
     @abc.abstractmethod
+    async def close(self) -> None:
+        """Закрывает соединени с БД."""
+
+    @abc.abstractmethod
+    async def get_database(self):
+        """Получает объект базы данных."""
+
+    @abc.abstractmethod
     async def get_collection(self, collection_name: str):
         """Получить коллекцию по названию."""
 

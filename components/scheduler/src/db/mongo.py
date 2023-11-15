@@ -2,20 +2,35 @@
 
 import uuid
 
+from core.config import settings
 from db.abstract import AbstractDB
+from loguru import logger
+from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.collection import Collection
+from pymongo.database import Database
 
 
 class MongoDB(AbstractDB):
     """Реализация AbstractDB для взаимодействия с коллекциями MongoDB."""
 
-    def __init__(self, database: str) -> None:
+    def __init__(self, mongo_client: AsyncIOMotorClient) -> None:
         """Конструктор класса."""
-        self.database = database
+        self.mongo_client = mongo_client
+
+    async def close(self) -> None:
+        """Закрывает соединени с БД."""
+        if self.mongo_client:
+            self.mongo_client.close()
+            logger.info('Disconnected from MongoDB.')
+
+    async def get_database(self) -> Database:
+        """Получает объект базы данных."""
+        return self.mongo_client[settings.mongo_db]
 
     async def get_collection(self, collection_name: str) -> Collection:
         """Получить коллекцию по названию."""
-        return self.database[collection_name]
+        database = await self.get_database()
+        return database[collection_name]
 
     async def find_all(self, collection_name: str, query: dict) -> list[dict]:
         """Поиск документов в таблице."""

@@ -3,6 +3,7 @@
 import aiormq
 from broker.abstract import AbstractBroker
 from core.config import settings
+from loguru import logger
 
 
 class RabbitBroker(AbstractBroker):
@@ -12,6 +13,12 @@ class RabbitBroker(AbstractBroker):
         """Конструктор класса."""
         self.connection = connection
         self.channel = channel
+
+    async def close(self) -> None:
+        """Закрывает соединение с брокером."""
+        if self.connection:
+            await self.connection.close()
+            logger.info('Disconnected from Rabbit.')
 
     async def declare_queue(self) -> None:
         """Создание очередей."""
