@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  test_app:
+    build: ../../.
+    container_name: test_app
+    env_file:
+      - .env
+    ports:
+      - ${API_PORT}:${API_PORT}
+    depends_on:
+      mongo_test:
+        condition: service_healthy
+      rabbitmq_test:
+        condition: service_healthy]
+
+  mongo_test:
+    image: mongo:${MONGO_VERSION}
+    restart: unless-stopped
+    container_name: mongo_test
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok'
+      interval: 2s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - ${MONGO_PORT}:${MONGO_PORT}
+
+  rabbitmq_test:
+    image: rabbitmq:${RABBIT_VERSION}
+    restart: unless-stopped
+    container_name: rabbitmq_test
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    ports:
+      - ${RABBIT_PORT}:${RABBIT_PORT}
+
+  tests:
+    container_name: tests
+    build:
+      context: .
+    env_file:
+      - .env
+    depends_on:
+      - test_app
+    entrypoint: >
+      sh -c "pip install -r /tests/functional/requirements.txt
+      && python3 /tests/functional/utils/wait_for_api.py
+      && pytest /tests/functional/src"

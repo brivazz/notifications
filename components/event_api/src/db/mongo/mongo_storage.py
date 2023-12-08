@@ -14,7 +14,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 mongo_client: AsyncIOMotorClient | None = None
 
 
-async def on_startup(mongo_uri: list[str]) -> None:
+async def on_startup(mongo_uri: str) -> None:
     """Выполняет необходимые операции при запуске приложения."""
     global mongo_client
     try:
