@@ -1,9 +1,9 @@
 """API для создания и отправки уведомлений."""
 
 from api.v1.schemas.response_model import ResponseNotification, ResponseTemplate
-from fastapi import APIRouter, Body, Depends, HTTPException, status
-from models.notifications import Event, NotificationError
-from models.templates import Template, TemplateError
+from fastapi import APIRouter, Body, Depends, status
+from models.notifications import Event
+from models.templates import Template
 from service.notifications import Notifications, get_notification_service
 
 events_router = APIRouter()
@@ -17,12 +17,8 @@ events_router = APIRouter()
     response_model=ResponseNotification,
 )
 async def create_notification(event: Event = Body(), notification: Notifications = Depends(get_notification_service)):
-    """Создания уведомления."""
-    try:
-        result = await notification.create_notification(event)
-        return ResponseNotification.model_validate(result)
-    except NotificationError as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    """Создание уведомления."""
+    return await notification.create_notification(event)
 
 
 @events_router.post(
@@ -37,8 +33,4 @@ async def create(
     notification: Notifications = Depends(get_notification_service),
 ):
     """Создание шаблона."""
-    try:
-        result = await notification.create_template(template)
-        return ResponseTemplate.model_validate(result)
-    except TemplateError as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    return await notification.create_template(template)

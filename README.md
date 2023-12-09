@@ -1,3 +1,6 @@
+[Ссылка на репозиторий](https://github.com/brivazz/notifications_sprint_1)
+
+
 # Проектная работа 10 спринта
 
 ## Задание на модуль
